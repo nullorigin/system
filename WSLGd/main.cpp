@@ -4,7 +4,7 @@
 #include "common.h"
 #include "ProcessMonitor.h"
 #include "FontMonitor.h"
-
+#include <libgen.h>
 #define CONFIG_FILE ".wslgconfig"
 #define MSRDC_EXE "msrdc.exe"
 #define MSTSC_EXE "mstsc.exe"
@@ -198,7 +198,6 @@ void WaitForReadyNotify(int notifyFd)
     wil::unique_fd fd(accept(notifyFd, 0, 0));
     THROW_LAST_ERROR_IF(!fd);
 }
-
 int main(int Argc, char *Argv[])
 try {
     wil::g_LogExceptionCallback = LogException;
@@ -522,11 +521,11 @@ try {
     } else {
         rdpFilePathArg += c_rdpFile;
     }
-
+    const char *rdpClientExeBasename = rdpClientExePath.c_str();
     monitor.LaunchProcess(std::vector<std::string>{
         "/init",
         std::move(rdpClientExePath),
-        basename(rdpClientExePath.c_str()),
+        rdpClientExeBasename,
         std::move(remote),
         std::move(serviceId),
         "/silent",

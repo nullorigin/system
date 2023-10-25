@@ -1,123 +1,127 @@
 # Create a builder image with the compilers, etc. needed
-FROM mcr.microsoft.com/cbl-mariner/base/core:2.0.20230630 AS build-env
+FROM alpine:3.18.4 AS build-env
 
 # Install all the required packages for building. This list is probably
 # longer than necessary.
 RUN echo "== Install Git/CA certificates ==" && \
-    tdnf install -y \
+    apk add \
         git \
         ca-certificates
 
 RUN echo "== Install Core dependencies ==" && \
-    tdnf install -y \
+    apk add \
         alsa-lib \
-        alsa-lib-devel  \
+        alsa-lib-dev  \
         autoconf  \
         automake  \
         binutils  \
         bison  \
-        build-essential  \
         cairo \
-        cairo-devel \
+        cairo-dev \
         clang  \
-        clang-devel  \
+        clang-dev  \
         cmake  \
+        curl \
         dbus  \
-        dbus-devel  \
+        dbus-dev  \
         dbus-glib  \
-        dbus-glib-devel  \
+        dbus-glib-dev  \
         diffutils  \
-        elfutils-devel  \
-        file-libs  \
+        elfutils-dev  \
+        file  \
         flex  \
-        fontconfig-devel  \
+        fontconfig-dev  \
         gawk  \
         gcc  \
-        gettext  \
-        glibc-devel  \
-        glib-schemas \
+        g++ \
+        libc-dev  \
+        libc6-compat \
+        gettext \
+        glib \
         gobject-introspection  \
-        gobject-introspection-devel  \
+        gobject-introspection-dev  \
         harfbuzz  \
-        harfbuzz-devel  \
-        kernel-headers  \
+        harfbuzz-dev  \
+        linux-headers  \
         intltool \
         libatomic_ops  \
-        libcap-devel  \
+        libcap-dev  \
         libffi  \
-        libffi-devel  \
+        libffi-dev  \
         libgudev  \
-        libgudev-devel  \
+        libgudev-dev  \
         libjpeg-turbo  \
-        libjpeg-turbo-devel  \
+        libjpeg-turbo-dev  \
         libltdl  \
-        libltdl-devel  \
-        libpng-devel  \
-        librsvg2-devel \
-        libtiff  \
-        libtiff-devel  \
+        libpng-dev  \
+        librsvg-dev \
+        tiff  \
+        tiff-dev  \
         libusb  \
-        libusb-devel  \
+        libusb-dev  \
         libwebp  \
-        libwebp-devel  \
+        libwebp-dev  \
         libxml2 \
-        libxml2-devel  \
+        libxml2-dev  \
         make  \
         meson  \
         newt  \
         nss  \
-        nss-libs  \
+        nss-dev  \
         openldap  \
-        openssl-devel  \
-        pam-devel  \
+        openssl-dev  \
+        linux-pam-dev  \
         pango  \
-        pango-devel  \
+        pango-dev  \
         patch  \
-        perl-XML-Parser \
-        polkit-devel  \
-        python3-devel \
-        python3-mako  \
-        python3-markupsafe \
+        perl-xml-parser \
+        polkit-dev  \
+        python3 \
+        python3-dev \
+        py3-mako  \
+        py3-markupsafe \
+        rpm \
         sed \
-        sqlite-devel \
-        systemd-devel  \
+        sqlite-dev \
+        elogind-dev  \
         tar \
         unzip  \
         vala  \
-        vala-devel  \
-        vala-tools
+        vala-devhelp \
+        vala-lint \
+        libuser
 
 RUN echo "== Install UI dependencies ==" && \
-    tdnf    install -y \
-            libdrm-devel \
-            libepoxy-devel \
+        apk add \
+            libdrm-dev \
+            libepoxy-dev \
             libevdev \
-            libevdev-devel \
+            libevdev-dev \
             libinput \
-            libinput-devel \
-            libpciaccess-devel \
-            libSM-devel \
+            libinput-dev \
+            libpciaccess-dev \
+            libsm-dev \
             libsndfile \
-            libsndfile-devel \
-            libXcursor \
-            libXcursor-devel \
-            libXdamage-devel \
-            libXfont2-devel \
-            libXi \
-            libXi-devel \
-            libxkbcommon-devel \
-            libxkbfile-devel \
-            libXrandr-devel \
-            libxshmfence-devel \
-            libXtst \
-            libXtst-devel \
-            libXxf86vm-devel \
-            wayland-devel \
-            wayland-protocols-devel \
+            libsndfile-dev \
+            libxcursor \
+            libxcursor-dev \
+            libxdamage-dev \
+            libxfont2-dev \
+            libxi \
+            libxi-dev \
+            libxkbcommon-dev \
+            libxkbfile-dev \
+            libxrandr-dev \
+            libxshmfence-dev \
+            libxtst \
+            libxtst-dev \
+            libxxf86vm-dev \
+            wayland-dev \
+            wayland-protocols-dev \
             xkbcomp \
             xkeyboard-config \
-            xorg-x11-server-devel \
-            xorg-x11-util-macros
+            xorg-server-dev \
+            util-macros
 
 # Create an image with builds of FreeRDP and Weston
 FROM build-env AS dev
@@ -130,7 +134,7 @@ ARG FREERDP_VERSION=2
 WORKDIR /work
 RUN echo "WSLg (" ${WSLG_ARCH} "):" ${WSLG_VERSION} > /work/versions.txt
 
-RUN echo "Mariner:" `cat /etc/os-release | head -2 | tail -1` >> /work/versions.txt
+RUN echo "alpine:" `cat /etc/os-release | head -2 | tail -1` >> /work/versions.txt
 
 #
 # Build runtime dependencies.
@@ -221,24 +225,12 @@ RUN cmake -G Ninja \
     ninja -C build -j8 install && \
     echo 'FreeRDP:' `git --git-dir=/work/vendor/FreeRDP/.git rev-parse --verify HEAD` >> /work/versions.txt
 
-WORKDIR /work/debuginfo
-RUN if [ -z "$SYSTEMDISTRO_DEBUG_BUILD" ] ; then \
-        echo "== Strip debug info: FreeRDP ==" && \
-        /work/debuginfo/gen_debuginfo.sh /work/debuginfo/FreeRDP${FREERDP_VERSION}.list /work/build; \
-    fi
-
 # Build rdpapplist RDP virtual channel plugin
 COPY rdpapplist /work/rdpapplist
 WORKDIR /work/rdpapplist
 RUN /usr/bin/meson --prefix=${PREFIX} build \
         --buildtype=${BUILDTYPE} && \
     ninja -C build -j8 install
-
-WORKDIR /work/debuginfo
-RUN if [ -z "$SYSTEMDISTRO_DEBUG_BUILD" ] ; then \
-        echo "== Strip debug info: rdpapplist ==" && \
-        /work/debuginfo/gen_debuginfo.sh /work/debuginfo/rdpapplist.list /work/build; \
-    fi
 
 # Build Weston
 COPY vendor/weston /work/vendor/weston
@@ -271,12 +263,6 @@ RUN /usr/bin/meson --prefix=${PREFIX} build \
     ninja -C build -j8 install && \
     echo 'weston:' `git --git-dir=/work/vendor/weston/.git rev-parse --verify HEAD` >> /work/versions.txt
 
-WORKDIR /work/debuginfo
-RUN if [ -z "$SYSTEMDISTRO_DEBUG_BUILD" ] ; then \
-        echo "== Strip debug info: weston ==" && \
-        /work/debuginfo/gen_debuginfo.sh /work/debuginfo/weston.list /work/build; \
-    fi
-
 # Build WSLGd Daemon
 ENV CC=/usr/bin/clang
 ENV CXX=/usr/bin/clang++
@@ -287,87 +273,56 @@ RUN /usr/bin/meson --prefix=${PREFIX} build \
         --buildtype=${BUILDTYPE} && \
     ninja -C build -j8 install
 
-WORKDIR /work/debuginfo
-RUN if [ -z "$SYSTEMDISTRO_DEBUG_BUILD" ] ; then \
-        echo "== Strip debug info: WSLGd ==" && \
-        /work/debuginfo/gen_debuginfo.sh /work/debuginfo/WSLGd.list /work/build; \
-    fi
-
-# Gather debuginfo to a tar file
-WORKDIR /work/debuginfo
-RUN if [ -z "$SYSTEMDISTRO_DEBUG_BUILD" ] ; then \
-        echo "== Compress debug info: /work/debuginfo/system-debuginfo.tar.gz ==" && \
-        tar -C /work/build/debuginfo -czf system-debuginfo.tar.gz ./ ; \
-    fi
-
 ########################################################################
 ########################################################################
 
 ## Create the distro image with just what's needed at runtime
 
-FROM mcr.microsoft.com/cbl-mariner/base/core:2.0.20230630 AS runtime
+FROM alpine:3.18.4 AS runtime
 
 RUN echo "== Install Core/UI Runtime Dependencies ==" && \
-    tdnf    install -y \
+    apk add \
             cairo \
             chrony \
             dbus \
             dbus-glib \
-            dhcp-client \
+            dhcp \
             e2fsprogs \
-            freefont \
+            font-freefont \
             libinput \
             libjpeg-turbo \
             libltdl \
             libpng \
-            librsvg2 \
+            librsvg \
             libsndfile \
-            libwayland-client \
-            libwayland-server \
-            libwayland-cursor \
+            wayland-libs-server \
+            wayland-libs-client \
+            wayland-libs-cursor \
             libwebp \
-            libXcursor \
+            libxcursor \
             libxkbcommon \
-            libXrandr \
-            iproute \
+            libxrandr \
+            iproute2 \
             nftables \
             pango \
             procps-ng \
             rpm \
             sed \
             tzdata \
-            wayland-protocols-devel \
-            xcursor-themes \
-            xorg-x11-server-Xwayland \
-            xorg-x11-server-utils \
-            xorg-x11-xtrans-devel
+            wayland-protocols-dev \
+            xwayland \
+            xtrans
 
 # Install packages to aid in development, if not remove some packages. 
-ARG SYSTEMDISTRO_DEBUG_BUILD
-RUN if [ -z "$SYSTEMDISTRO_DEBUG_BUILD" ] ; then \
-        rpm -e --nodeps curl                     \
-        rpm -e --nodeps python3                  \
-        rpm -e --nodeps python3-libs;            \
-    else                                         \
-        echo "== Install development aid packages ==" && \
-        tdnf install -y                          \
-             gdb                                 \
-             mariner-repos-debug                 \
-             nano                                \
-             vim                              && \
-        tdnf install -y                          \
-             wayland-debuginfo                   \
-             xorg-x11-server-debuginfo;          \
-    fi
 
 # Clear the tdnf cache to make the image smaller
-RUN tdnf clean all
+RUN apk cache clean
 
 # Remove extra doc
 RUN rm -rf /usr/lib/python3.7 /usr/share/gtk-doc
 
 # Create wslg user.
-RUN useradd -u 1000 --create-home wslg && \
+RUN adduser -u 1000 --disabled-password --home /home/wslg wslg && \
     mkdir /home/wslg/.config && \
     chown wslg /home/wslg/.config
 
