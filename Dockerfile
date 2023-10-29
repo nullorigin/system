@@ -116,8 +116,8 @@ RUN echo "alpine:" `cat /etc/os-release | head -2 | tail -1` >> /work/versions.t
 
 ENV DESTDIR=/work/build
 ENV PREFIX=/usr
-ENV PKG_CONFIG_PATH=${DESTDIR}${PREFIX}/lib/pkgconfig:${DESTDIR}${PREFIX}/lib/${WSLG_ARCH}-linux-gnu/pkgconfig:${DESTDIR}${PREFIX}/share/pkgconfig
-ENV C_INCLUDE_PATH=${DESTDIR}${PREFIX}/include/freerdp${FREERDP_VERSION}:${DESTDIR}${PREFIX}/include/winpr${FREERDP_VERSION}:${DESTDIR}${PREFIX}/include/wsl/stubs:${DESTDIR}${PREFIX}/include
+ENV PKG_CONFIG_PATH=${DESTDIR}${PREFIX}/lib/pkgconfig:${DESTDIR}${PREFIX}/lib/${WSLG_ARCH}-linux-musl/pkgconfig:${DESTDIR}${PREFIX}/share/pkgconfig
+ENV C_INCLUDE_PATH=${DESTDIR}${PREFIX}/include/winpr2:${DESTDIR}${PREFIX}/include/wsl/stubs:${DESTDIR}${PREFIX}/include
 ENV CPLUS_INCLUDE_PATH=${C_INCLUDE_PATH}
 ENV LIBRARY_PATH=${DESTDIR}${PREFIX}/lib
 ENV LD_LIBRARY_PATH=${LIBRARY_PATH}
@@ -214,10 +214,11 @@ COPY resources/linux.png /usr/share/icons/wsl/linux.png
 
 # Copy the built artifacts from the build stage.
 COPY --from=dev /work/build/usr/ /usr/
-RUN ln -s /bin/wslpath /usr/bin/wslpath
-RUN ln -s /bin/wslinfo /usr/bin/wslinfo
-RUN ln -s /sbin/mkswap /usr/sbin/mkswap
-RUN ln -s /sbin/swapon /usr/sbin/swapon
+RUN cp -pfru /usr/bin/* /bin && \
+cp -pfru /usr/sbin/* /sbin && \
+rm -rf /usr/bin/ && rm -rf /usr/sbin/ && \
+ln -s /sbin /usr/sbin && \
+ln -s /bin /usr/bin
 # Append WSLg setttings to pulseaudio.
 COPY config/default_wslg.pa /etc/pulse/default_wslg.pa
 RUN cat /etc/pulse/default_wslg.pa >> /etc/pulse/default.pa
