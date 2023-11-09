@@ -16,38 +16,47 @@ ARG WSLG_ARCH="x86_64"
 RUN echo "WSLg (" ${WSLG_ARCH} "):" ${WSLG_VERSION} > /work/versions.txt
 RUN echo "alpine:" `cat /etc/os-release | head -2 | tail -1` >> /work/versions.txt
 
-ARG MAKEDEPS[]
-ARG CHKDEPS[]
-ARG DEPS[]
-ARG FILEPATHS[]
-ARG i
-COPY /src/ /work/src/
-ARG APKBUILDS=$(echo /work/src/aports/*/*/APKBUILD)
+ARG MDEPS
+ARG CDEPS
+ARG RDEPS
+COPY src/ /work/src/
+ARG APKBUILDS=$(echo /work/src/abuild/base/*/APKBUILD)
 RUN for file in "$APKBUILDS"; do \
     if [ -f "$file" ] && $(source $file); then \
     source $file; \
-    export MAKEDEPS[i]=$(echo ${makedepends}) && \
-    export CHKDEPS[i]=$(echo ${checkdepends}) && \
-    export DEPS[i]=$(echo ${depends}) && \
-    export FILEPATHS[i]=$(echo ${file}); \
-    i=$[i++]; \
+    export MDEPS=$(echo $MDEPS ${makedepends} | sed -e 's,-dev,,g' -e "s,>.*,,g" -e "s,<.*,,g" -e "s,=.*,,g") && \
+    export CDEPS=$(echo $CDEPS ${checkdepends} | sed -e 's,-dev,,g' -e "s,>.*,,g" -e "s,<.*,,g" -e "s,=.*,,g") && \
+    export RDEPS=$(echo $RDEPS ${depends} | sed -e 's,-dev,,g' -e "s,>.*,,g" -e "s,<.*,,g" -e "s,=.*,,g") \
     fi \
     done; \
-    export APKPATH=$(echo ${DEPS} | sed -e "s, ,\n,g" | \
-    sed -e 's,-dev,,g' -e "s,>.*,,g" -e "s,<.*,,g" -e "s,=.*,,g" | \
-    grep -v '!' | sort | uniq); \
-    for dep in ${APKDEPS}; do \
-    export APKDEP_DIR=$(echo /work/src/apk/$dep); \
-    if [ -d ${APKDEP_DIR} ]; then \
-    mkdir -p /work/abuild/$dep/ && \
-    cp -rf ${APKDEP_DIR}/* /work/abuild/$dep/; \
+    export MDEPS=$(echo $MDEPS | sed -e "s, ,\n,g" | sort | uniq) && \
+    export CDEPS=$(echo $CDEPS | sed -e "s, ,\n,g" | sort | uniq) && \
+    export RDEPS=$(echo $RDEPS | sed -e "s, ,\n,g" | sort | uniq); \
+    for dep in ${MDEPS}; do \
+    DEPDIR=$(echo /work/src/aports/*/$dep); \
+    if [ -d ${DEPDIR} ]; then \
+    mkdir -p /work/src/abuild/make/$dep/ && \
+    cp -rf ${DEPDIR}/* /work/src/abuild/make/$dep/; \
     fi \
     done; \
-    export APKBUILDS=$(echo /work/src/aports/*/*/APKBUILD) && \
+    for dep in ${CDEPS}; do \
+    DEPDIR=$(echo /work/src/aports/*/$dep); \
+    if [ -d ${DEPDIR} ]; then \
+    mkdir -p /work/src/abuild/check/$dep/ && \
+    cp -rf ${DEPDIR}/* /work/src/abuild/check/$dep/; \
+    fi \
+    done; \
+    for dep in ${RDEPS}; do \
+    DEPDIR=$(echo /work/src/aports/*/$dep); \
+    if [ -d ${DEPDIR} ]; then \
+    mkdir -p /work/src/abuild/runtime/$dep/ && \
+    cp -rf ${DEPDIR}/* /work/src/abuild/runtime/$dep/; \
+    fi \
+    done; \
+    export APKBUILDS=$(echo /work/src/abuild/*/*/APKBUILD) && \
     mkdir -p /work/abuild/src; \
-    for filepath in ${APKBUILDS}; do \
-    cd /work/abuild && \
-    DIRPATH=$(echo $filepath | sed -e 's,APKBUILD,,g') && \
+    for file in ${APKBUILDS}; do \
+    DIRPATH=$(echo $file | sed -e 's,APKBUILD,,g') && \
     cd ${DIRPATH} && \
     abuild -F checksum && \
     abuild -F -P /work/ -s /work/abuild/src -r; \
@@ -71,20 +80,20 @@ RUN adduser -u 1000 --disabled-password --home /home/wslg wslg && \
     chown wslg /home/wslg/.config
 
 # Copy config files.
-COPY config/wsl.conf /etc/wsl.conf
-COPY config/weston.ini /home/wslg/.config/weston.ini
-COPY config/local.conf /etc/fonts/local.conf
+COPY cfg/wsl.conf /etc/wsl.conf
+COPY cfg/weston.ini /home/wslg/.config/weston.ini
+COPY cfg/local.conf /etc/fonts/local.conf
 
 # Copy default icon file.
-COPY config/linux.png /usr/share/icons/wsl/linux.png
+COPY cfg/linux.png /usr/share/icons/wsl/linux.png
 
 RUN mkdir -p /etc/ld.so.conf.d && \
     echo "/usr/lib/wsl/lib" > /etc/ld.so.conf.d/ld.wsl.conf
-COPY config/tls.crt /etc/rdp-tls.crt
-COPY config/tls.key /etc/rdp-tls.key
+COPY cfg/tls.crt /etc/rdp-tls.crt
+COPY cfg/tls.key /etc/rdp-tls.key
 
 # Append WSLg setttings to pulseaudio.
-COPY config/default_wslg.pa /etc/pulse/default_wslg.pa
+COPY cfg/default_wslg.pa /etc/pulse/default_wslg.pa
 RUN cat /etc/pulse/default_wslg.pa >> /etc/pulse/default.pa
 RUN rm /etc/pulse/default_wslg.pa
-CMD /bin/WSLGd
+CMD /usr/bin/WSLGd
